@@ -1,34 +1,36 @@
 import pytest
 import time
-import os
 from login_page import LoginPage
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 
-def test_HU03_buscar_empleado(driver):
+NOMBRE_BASE = f"Full{str(int(time.time()))[-3:]}"
+
+def test_full_cycle(driver):
     driver.get("https://opensource-demo.orangehrmlive.com/")
     login = LoginPage(driver)
     login.ingresar_credenciales("Admin", "admin123")
-    login.buscar_empleado("Jose") # Busca al que creamos antes
-    time.sleep(3)
-    driver.save_screenshot("reports/HU03_Read.png")
-    assert "Jose" in driver.page_source
-
-def test_HU04_editar_empleado(driver):
-    driver.get("https://opensource-demo.orangehrmlive.com/")
-    login = LoginPage(driver)
-    login.ingresar_credenciales("Admin", "admin123")
-    login.buscar_empleado("Jose")
-    login.editar_empleado("Jose Editado") # Cambia el nombre
-    time.sleep(5)
-    driver.save_screenshot("reports/HU04_Update.png")
-    assert "viewPersonalDetails" in driver.current_url
-
-def test_HU05_eliminar_empleado(driver):
-    driver.get("https://opensource-demo.orangehrmlive.com/")
-    login = LoginPage(driver)
-    login.ingresar_credenciales("Admin", "admin123")
-    login.buscar_empleado("Jose Editado")
-    login.eliminar_empleado() # ¡Adiós Jose!
-    time.sleep(3)
-    driver.save_screenshot("reports/HU05_Delete.png")
-    # Si sale el mensaje de "No Records Found" o éxito, pasó
-    assert "No Records Found" in driver.page_source or "Successfully Deleted" in driver.page_source
+    
+    # 1. CREATE
+    login.crear_empleado(NOMBRE_BASE, "Master")
+    
+    # 2. READ (SEARCH)
+    login.buscar_empleado(NOMBRE_BASE)
+    # Esperamos a que el nombre aparezca en el texto del body
+    WebDriverWait(driver, 20).until(lambda d: NOMBRE_BASE in d.page_source)
+    assert NOMBRE_BASE in driver.page_source
+    
+    # 3. UPDATE
+    login.editar_empleado(NOMBRE_BASE + "Mod")
+    WebDriverWait(driver, 30).until(EC.url_contains("viewPersonalDetails"))
+    
+    # 4. DELETE
+    login.buscar_empleado(NOMBRE_BASE + "Mod")
+    login.eliminar_empleado()
+    
+    # Esperamos a que el texto de "No hay registros" aparezca
+    WebDriverWait(driver, 20).until(
+        lambda d: "No Records Found" in d.find_element(By.TAG_NAME, "body").text
+    )
+    assert "No Records Found" in driver.page_source
